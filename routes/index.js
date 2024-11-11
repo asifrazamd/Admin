@@ -10,6 +10,7 @@ dotenv.config();
 router.get('/', async (req, res) => {
   const isAuthenticated = req.oidc.isAuthenticated();
   const user = isAuthenticated ? req.oidc.user : null;
+  console.log(user);
 
   if (isAuthenticated && user) {
     const { sub: auth0Id, name, email, role } = user; // Extract role from Auth0 user object
@@ -17,8 +18,9 @@ router.get('/', async (req, res) => {
 
     try {
       const [results] = await db.execute('SELECT * FROM users1 WHERE auth0_id = ?', [auth0Id]);
-      let userRole = 'user'; // Default role
-
+      let userRole = req.query.role === 'admin' ? 'admin' : 'user';
+      //req.query.results.entries
+      console.log(req.query.role);
       if (results.length === 0) {
         // New user, insert into database
         await db.execute(
@@ -28,10 +30,12 @@ router.get('/', async (req, res) => {
         console.log('New user added:', name);
       } else {
         // Existing user, update details in the database
-        userRole = results[0].role; // Existing role
+        userRole = results[0].role; 
+        if (req.query.role === 'Admin' && results[0].role !== 'admin') { userRole = 'admin'; }// Set userRole to admin if 'Admin' was entered }
+        console.log(userRole);// Existing role
         await db.execute(
-          'UPDATE users1 SET name = ?, email = ?, password = ? WHERE auth0_id = ?',
-          [name, email, hashedPassword, auth0Id]
+          'UPDATE users1 SET name = ?, email = ?, password = ?, role=? WHERE auth0_id = ?',
+          [name, email, hashedPassword, userRole,auth0Id]
         );
         console.log('User updated:', name);
       }
